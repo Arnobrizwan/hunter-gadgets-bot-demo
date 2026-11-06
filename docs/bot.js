@@ -129,7 +129,9 @@ async function askAI(history, text) {
   if (!key) return null;
   const ctx = norm(text + ' ' + history.slice(-2).map((m) => m.text).join(' '));
   const catHit = [...new Set(catalog.map((p) => p.category))].filter((c) => norm(c).split(' ').some((w) => w.length > 3 && ctx.includes(w.replace(/s$/, ''))));
-  const relevant = [...new Map([...catalog.filter((p) => catHit.includes(p.category)), ...findProducts(ctx, 15)].map((p) => [p.name, p])).values()].slice(0, 45);
+  const budgetM = fromBn(text).match(/(\d{2,6})\s*(tk|taka|টাকা|৳)?\s*(er|এর)?\s*(moddhe|moddhe|modhe|মধ্যে|niche|nice|নিচে|kom|কম|under|below|within)|(under|below|within)\s*৳?\s*(\d{2,6})/i);
+  const budget = budgetM ? Number(budgetM[1] || budgetM[6]) : null;
+  const relevant = [...new Map([...catalog.filter((p) => catHit.includes(p.category)), ...findProducts(ctx, 15)].map((p) => [p.name, p])).values()].filter((p) => !budget || p.price <= budget).slice(0, 45);
   const pool = (relevant.length ? relevant : catalog.slice(0, 40))
     .map((p) => `${p.name} | ${p.category} | ৳${p.price}${p.regular ? ` (আগে ৳${p.regular})` : ''} | ${p.stock || ''} | ${p.url}`)
     .join('\n');
@@ -148,7 +150,7 @@ async function askAI(history, text) {
 পণ্যের তালিকা (নাম | ক্যাটাগরি | দাম | স্টক | লিংক):
 ${pool}`;
   const contents = history.slice(-8).map((m) => ({ role: m.role === 'bot' ? 'model' : 'user', parts: [{ text: m.text }] }));
-  contents.push({ role: 'user', parts: [{ text }] });
+  contents.push({ role: 'user', parts: [{ text: budget ? `${text}\n(বাজেট: ৳${budget} — নিচের তালিকা আগেই এই বাজেট দিয়ে ছাঁকা, বাজেটের সংখ্যা উত্তরে আবার লিখবে না)` : text }] });
   let d = null;
   for (const model of MODELS) {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
