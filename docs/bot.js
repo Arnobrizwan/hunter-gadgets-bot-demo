@@ -55,7 +55,7 @@ function rules(text) {
   if (has(t, /^(hi|hello|hey|salam|assalam|aslam|আসসালাম|সালাম|হাই|হ্যালো|hlw|hlo)/)) {
     return 'ওয়ালাইকুম আসসালাম 👋 Hunter Gadgets এ স্বাগতম!\n\nআমি অর্ডার, দাম, স্টক, ডেলিভারি আর পেমেন্ট নিয়ে সাহায্য করতে পারি। যেমন লিখুন:\n• "CX12 er dam koto?"\n• "phone cooler dekhan"\n• "order korbo"';
   }
-  if (has(t, /(human|manush|মানুষ|agent|complain|অভিযোগ|problem|সমস্যা|nosto|নষ্ট|kaj kore na|কাজ করে না|warranty|ওয়ারেন্টি|return|ফেরত|refund|রিফান্ড|replace)/)) {
+  if (has(t, /(human|manush|মানুষ|agent|complain|অভিযোগ|problem|সমস্যা|nosto|noshto|নষ্ট|kaj ?kor(e|te|tese|teche|che|ce|ena)? ?na|কাজ কর(ে|ছে|তেছে) ?না|damage|broken|vanga|ভাঙা|fault|defect|warranty|ওয়ারেন্টি|return|ফেরত|refund|রিফান্ড|replace)/)) {
     return { handover: true, reply: HANDOVER };
   }
   if (has(t, /(delivery|ডেলিভারি|cod|cash on|কত দিনে|koto dine|courier|কুরিয়ার|shipping)/)) {
@@ -127,7 +127,9 @@ function orderStep(text, state) {
 async function askAI(history, text) {
   const key = GEMINI_KEY;
   if (!key) return null;
-  const relevant = findProducts(text + ' ' + (history.slice(-2).map((m) => m.text).join(' ')), 15);
+  const ctx = norm(text + ' ' + history.slice(-2).map((m) => m.text).join(' '));
+  const catHit = [...new Set(catalog.map((p) => p.category))].filter((c) => norm(c).split(' ').some((w) => w.length > 3 && ctx.includes(w.replace(/s$/, ''))));
+  const relevant = [...new Map([...catalog.filter((p) => catHit.includes(p.category)), ...findProducts(ctx, 15)].map((p) => [p.name, p])).values()].slice(0, 45);
   const pool = (relevant.length ? relevant : catalog.slice(0, 40))
     .map((p) => `${p.name} | ${p.category} | ৳${p.price}${p.regular ? ` (আগে ৳${p.regular})` : ''} | ${p.stock || ''} | ${p.url}`)
     .join('\n');
@@ -139,6 +141,7 @@ async function askAI(history, text) {
 - কখনো ডিসকাউন্ট, রিফান্ড, ডেলিভারির তারিখ বা স্টকের প্রতিশ্রুতি দেবে না।
 - জটিল সমস্যা, অভিযোগ, ওয়ারেন্টি, রিটার্ন হলে বলবে টিমের কাছে পাঠানো হচ্ছে।
 - ডেলিভারি: সারা বাংলাদেশে ক্যাশ অন ডেলিভারি। পেমেন্ট: COD বা bKash/Nagad (TrxID দিতে হয়)। সাপোর্ট টাইম: সকাল ৮টা–রাত ১২টা।
+- দাম সবসময় টাকায় (৳)। কাস্টমারের লেখা সংখ্যা ঠিক যেমন আছে তেমন পড়বে (300 মানে ৩০০, ৩০০০ না)। দাম ও সব সংখ্যা ইংরেজি অঙ্কে লিখবে (যেমন ৳1,390, 300) — বাংলা অঙ্কে রূপান্তর করবে না। বাজেটের মধ্যে থাকা পণ্যগুলো দাম মিলিয়ে বেছে দেবে।
 - অর্ডার করতে চাইলে বলবে "order korbo" লিখতে।
 - দোকানের বাইরের বিষয় (রাজনীতি, অন্য দোকান, সাধারণ প্রশ্ন) হলে ভদ্রভাবে বলবে তুমি শুধু Hunter Gadgets এর পণ্য নিয়ে সাহায্য করো।
 ক্যাটাগরি: ${categories}
