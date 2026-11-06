@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Hunter Gadgets — Support Bot (Demo)</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --wa:#075e54; --wa2:#128c7e; --me:#d9fdd3; --bot:#fff; --bg:#efeae2; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; font-family:'Hind Siliguri', system-ui, sans-serif; background:#d1d7db; }
+  .wrap { max-width:480px; height:100dvh; margin:0 auto; display:flex; flex-direction:column; background:var(--bg); box-shadow:0 0 30px rgba(0,0,0,.15); }
+  header { background:var(--wa); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:10px; }
+  header .av { width:40px; height:40px; border-radius:50%; background:#fff; color:var(--wa); display:grid; place-items:center; font-weight:700; font-size:15px; flex-shrink:0; }
+  header b { display:block; font-size:16px; }
+  header small { opacity:.85; font-size:12px; }
+  .note { background:#fff8c5; color:#5c4b00; font-size:12.5px; padding:7px 12px; text-align:center; line-height:1.4; }
+  #log { flex:1; overflow-y:auto; padding:12px 10px 6px; background-image:radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px); background-size:18px 18px; }
+  .msg { max-width:84%; margin:4px 0; padding:7px 10px 18px; border-radius:9px; position:relative; font-size:15px; line-height:1.45; white-space:pre-wrap; word-wrap:break-word; box-shadow:0 1px .5px rgba(0,0,0,.13); }
+  .me { background:var(--me); margin-left:auto; border-top-right-radius:2px; }
+  .bot { background:var(--bot); border-top-left-radius:2px; }
+  .msg a { color:#027eb5; word-break:break-all; }
+  .tag { position:absolute; right:8px; bottom:3px; font-size:10.5px; color:#8696a0; }
+  .tag.ai { color:#7c3aed; } .tag.rule { color:#0a8a5a; } .tag.order { color:#b45309; } .tag.handover { color:#dc2626; }
+  .typing { color:#667781; font-style:italic; font-size:13px; padding:4px 8px; }
+  .chips { display:flex; gap:6px; overflow-x:auto; padding:6px 8px; background:var(--bg); }
+  .chips button { flex-shrink:0; border:1px solid #c8d0d4; background:#fff; border-radius:16px; padding:6px 11px; font:inherit; font-size:13px; color:var(--wa); cursor:pointer; }
+  form { display:flex; gap:6px; padding:8px; background:#f0f2f5; align-items:center; }
+  form input { flex:1; border:none; border-radius:20px; padding:11px 14px; font:inherit; font-size:15px; outline:none; min-width:0; }
+  .icon { width:42px; height:42px; border-radius:50%; border:none; display:grid; place-items:center; cursor:pointer; flex-shrink:0; font-size:18px; background:transparent; }
+  .send { background:var(--wa2); color:#fff; }
+  .legend { font-size:11px; color:#54656f; text-align:center; padding:3px 8px 6px; background:#f0f2f5; }
+  .legend span { margin:0 5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="av">HG</div>
+    <div><b>Hunter Gadgets</b><small>Support bot · সাধারণত সাথে সাথে উত্তর দেয়</small></div>
+  </header>
+  <div class="note">🔧 ডেমো — আসল বট WhatsApp ও Telegram এ এভাবেই চলবে। দাম ও স্টক huntergadgets.com থেকে নেওয়া (৬ নভেম্বর)।</div>
+  <div id="log" aria-live="polite"></div>
+  <div class="chips" id="chips">
+    <button>Assalamualaikum</button>
+    <button>CX12 er dam koto?</button>
+    <button>phone cooler 1500 er moddhe kon ta valo?</button>
+    <button>delivery charge koto?</button>
+    <button>bKash e payment kivabe?</button>
+    <button>order korbo</button>
+    <button>amar cooler kaj kortese na</button>
+  </div>
+  <form id="f">
+    <button type="button" class="icon" id="photo" title="ছবি পাঠান (ডেমো)">📷</button>
+    <button type="button" class="icon" id="voice" title="ভয়েস পাঠান (ডেমো)">🎤</button>
+    <input id="t" autocomplete="off" placeholder="মেসেজ লিখুন (বাংলা / English / Banglish)" />
+    <button class="icon send" title="পাঠান">➤</button>
+  </form>
+  <div class="legend"><span style="color:#0a8a5a">⚡ rule = AI খরচ নেই</span><span style="color:#7c3aed">🤖 AI</span><span style="color:#b45309">🛒 order</span><span style="color:#dc2626">👤 human</span></div>
+</div>
+<script src="bot.js"></script>
+<script>
+const log = document.getElementById('log');
+const input = document.getElementById('t');
+let history = [], state = {};
+const LABEL = { rule:'⚡ rule', ai:'🤖 AI', order:'🛒 order', handover:'👤 human' };
+
+function esc(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function fmt(s){
+  return esc(s)
+    .replace(/(https?:\/\/[^\s)]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*([^*\n]+)\*/g, '<b>$1</b>')
+    .replace(/(^|\s)_([^_\n]+)_/g, '$1<i>$2</i>');
+}
+function add(role, text, source){
+  const d = document.createElement('div');
+  d.className = 'msg ' + (role === 'me' ? 'me' : 'bot');
+  d.innerHTML = fmt(text) + (source ? `<span class="tag ${source}">${LABEL[source]||''}</span>` : '<span class="tag">✓✓</span>');
+  log.appendChild(d); log.scrollTop = log.scrollHeight;
+}
+async function send(text, attachment){
+  if (!text && !attachment) return;
+  add('me', attachment ? ({image:'📷 ছবি', voice:'🎤 ভয়েস মেসেজ (০:১২)'}[attachment]) : text);
+  const typing = document.createElement('div'); typing.className = 'typing'; typing.textContent = 'টাইপ করছে…';
+  log.appendChild(typing); log.scrollTop = log.scrollHeight;
+  try {
+    const d = await botReply({ text, history, state, attachment });
+    typing.remove();
+    add('bot', d.reply, d.source);
+    state = d.state || {};
+    if (text) history.push({ role:'user', text }); history.push({ role:'bot', text:d.reply });
+    history = history.slice(-12);
+  } catch (e) { typing.remove(); add('bot', 'নেটওয়ার্ক সমস্যা, আবার চেষ্টা করুন।', 'handover'); }
+}
+document.getElementById('f').addEventListener('submit', e => { e.preventDefault(); const v = input.value.trim(); input.value=''; send(v); });
+document.getElementById('chips').addEventListener('click', e => { if (e.target.tagName === 'BUTTON') send(e.target.textContent); });
+document.getElementById('photo').onclick = () => send('', 'image');
+document.getElementById('voice').onclick = () => send('', 'voice');
+add('bot', 'আসসালামু আলাইকুম 👋 Hunter Gadgets সাপোর্টে স্বাগতম!\nদাম, স্টক, অর্ডার, ডেলিভারি — যা জানতে চান লিখুন।', 'rule');
+</script>
+</body>
+</html>
